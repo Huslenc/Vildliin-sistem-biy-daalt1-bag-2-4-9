@@ -1,3 +1,4 @@
+/* threadpool.h - POSIX thread pool (OS Concepts, Programming Project: Designing a Thread Pool) */
 #ifndef THREADPOOL_H
 #define THREADPOOL_H
 
@@ -9,7 +10,7 @@ typedef struct {
     int id;
 } task_t;
 
-
+/* Event hook: used by the UI logger. ev = "submit","rejected","start","done","idle","exit" */
 typedef void (*event_cb)(const char *ev, int worker, int task);
 
 typedef struct {
@@ -19,7 +20,7 @@ typedef struct {
 } worker_t;
 
 typedef struct threadpool {
-    task_t *queue;         
+    task_t *queue;          /* circular buffer */
     int cap, head, tail, count;
     pthread_mutex_t lock;
     pthread_cond_t not_empty;
@@ -29,8 +30,11 @@ typedef struct threadpool {
     event_cb cb;
 } threadpool_t;
 
+/* returns 0 on success, 1 on bad argument, malloc or pthread_create failure (pool is then cleaned up) */
 int  pool_init(threadpool_t *p, int workers, int queue_cap, event_cb cb);
+/* returns 0 on success, 1 if the queue is full or the pool is shut down (task NOT accepted) */
 int  pool_submit(threadpool_t *p, void (*f)(void *), void *data, int task_id);
+/* waits until queued tasks are finished, then joins all workers */
 void pool_shutdown(threadpool_t *p);
 
 #endif
