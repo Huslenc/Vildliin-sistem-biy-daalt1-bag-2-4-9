@@ -1,3 +1,6 @@
 tpdemo
+tpdemo_tsan
+tpdemo_asan
 __pycache__/
 *.pyc
+*.o
