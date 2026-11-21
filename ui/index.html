@@ -146,10 +146,19 @@ async function run(){
   try{
     const r = await fetch('/api/run?' + q);
     const j = await r.json();
-    if(!r.ok || j.error){ msg(j.error || 'Алдаа гарлаа'); pill('Алдаа',''); return; }
+    if(!r.ok || j.error){ clearView(); msg(j.error || 'Алдаа гарлаа'); pill('Алдаа',''); return; }
     data = j; prepare(); play(0);
-  }catch(e){ msg('Серверт холбогдож чадсангүй. serve.py ажиллаж байгаа эсэхийг шалгана уу.'); pill('Алдаа',''); }
+  }catch(e){ clearView(); msg('Серверт холбогдож чадсангүй. serve.py ажиллаж байгаа эсэхийг шалгана уу.'); pill('Алдаа',''); }
   finally{ $('run').disabled = false; }
+}
+
+function clearView(){   /* error path: drop the previous run so stale data is never shown as current */
+  data = null; tasks = {}; rejects = []; playing = false; T = 0; W = 0; Q = 0;
+  $('workers').innerHTML = '<div class="empty">Ажиллуулалт амжилтгүй. Параметрээ засаад «Ажиллуулах» дарна уу.</div>';
+  $('queue').innerHTML = ''; $('gantt').innerHTML = ''; $('stats').innerHTML = '';
+  $('wsum').textContent = ''; $('qsum').textContent = ''; $('clock').textContent = '0.00 с'; $('tot').textContent = '—';
+  $('seek').value = 0; $('seek').disabled = true; $('pause').disabled = true; $('replay').disabled = true;
+  $('pause').textContent = 'Түр зогсоох';
 }
 
 function prepare(){
@@ -227,7 +236,7 @@ function render(){
     stat('Queue дүүрсэн үед хүлээлгэсэн task', rej, rej ? 'warn' : '') +
     stat('Дундаж хүлээлт', waitN ? Math.round(waitSum/waitN) + ' мс' : '—') +
     stat('Worker ашиглалт', util.toFixed(0) + ' %', '', '<div class="bar"><i style="width:'+Math.min(100,util)+'%"></i></div>') +
-    (T >= total ? stat('C шалгалт (бүгд дууссан, зэрэг ≤ worker)', data.summary.ok ? 'OK · max ' + data.summary.max_running : 'АЛДАА', data.summary.ok ? 'good' : 'bad') : '');
+    (T >= total ? stat('C шалгалт (бүгд дууссан, зэрэг ≤ worker)', data.summary.ok ? 'OK · max ' + data.summary.max_running : (data.summary.truncated ? 'ЛОГ ДҮҮРСЭН' : 'АЛДАА'), data.summary.ok ? 'good' : 'bad') : '');
   gantt();
 }
 

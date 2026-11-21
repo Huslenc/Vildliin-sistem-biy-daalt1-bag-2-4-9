@@ -11,6 +11,14 @@ LIMITS = {  # name: (default, min, max)
     "min": (200, 1, 5000), "max": (800, 1, 5000), "interval": (100, 0, 2000),
 }
 
+MAX_RUN_S = 60      # longest run the server accepts (estimated worst case, seconds)
+TIMEOUT_S = 120     # safety net only: estimate_s() keeps accepted runs far below this
+
+def estimate_s(v):
+    """Upper bound of a run's duration in seconds (list-scheduling bound + submit pacing + start-up)."""
+    work = (v["tasks"] * v["max"] / v["workers"] + v["max"]) / 1000.0
+    return v["tasks"] * v["interval"] / 1000.0 + work + 0.5
+
 class Handler(BaseHTTPRequestHandler):
     def _send(self, code, body, ctype):
         self.send_response(code)
@@ -37,9 +45,13 @@ class Handler(BaseHTTPRequestHandler):
                 vals[k] = v
             if vals["max"] < vals["min"]:
                 return self._send(400, b'{"error":"max must be >= min"}', "application/json")
+            est = estimate_s(vals)
+            if est > MAX_RUN_S:
+                msg = "this setting needs up to ~%d s (limit %d s): lower tasks, task time or submit interval, or add workers" % (round(est), MAX_RUN_S)
+                return self._send(400, json.dumps({"error": msg}).encode(), "application/json")
             args = [os.path.join(ROOT, "tpdemo")] + [str(vals[k]) for k in ("workers", "queue", "tasks", "min", "max", "interval")]
             try:
-                out = subprocess.run(args, capture_output=True, timeout=120, check=True).stdout
+                out = subprocess.run(args, capture_output=True, timeout=TIMEOUT_S, check=True).stdout
             except FileNotFoundError:
                 return self._send(500, b'{"error":"tpdemo not built. Run: make"}', "application/json")
             except Exception as e:
